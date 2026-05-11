@@ -1,69 +1,50 @@
-variables:
-  GO_VERSION: "1.26.0"
-  MAC_GO_VERSION: "go@$GO_VERSION"
-  WIN_GO_VERSION: "go$GO_VERSION"
-  GIT_DEPTH: "0"
-
-default:
-  id_tokens:
-    VAULT_ID_TOKEN:
-      aud: https://vault.cfdata.org
-
-stages:
-  [
-    sync,
-    pre-build,
-    build,
-    validate,
-    test,
-    package,
-    release,
-    release-internal,
-    review,
-  ]
+# Main GitLab CI/CD pipeline configuration for cloudflared
+# This file orchestrates all platform-specific build and test pipelines
 
 include:
-  #####################################################
-  ########## Import Commons Configurations ############
-  #####################################################
-  - local: .ci/commons.gitlab-ci.yml
+  - local: '.ci/commons.gitlab-ci.yml'
+  - local: '.ci/ci-image.gitlab-ci.yml'
+  - local: '.ci/linux.gitlab-ci.yml'
+  - local: '.ci/mac.gitlab-ci.yml'
+  - local: '.ci/windows.gitlab-ci.yml'
+  - local: '.ci/apt-internal.gitlab-ci.yml'
+  - local: '.ci/github.gitlab-ci.yml'
 
-  #####################################################
-  ########### Sync Repository with Github #############
-  #####################################################
-  - local: .ci/github.gitlab-ci.yml
+stages:
+  - build-image
+  - test
+  - build
+  - package
+  - release
+  - publish
 
-  #####################################################
-  ############# Build or Fetch CI Image ###############
-  #####################################################
-  - local: .ci/ci-image.gitlab-ci.yml
+variables:
+  GO_VERSION: "1.22"
+  RUST_VERSION: "1.77.0"
+  CARGO_HOME: "${CI_PROJECT_DIR}/.cargo"
+  GOPATH: "${CI_PROJECT_DIR}/.go"
+  GOPROXY: "https://proxy.golang.org,direct"
+  # Docker image used for builds
+  BUILD_IMAGE: "${CI_REGISTRY_IMAGE}/build:latest"
 
-  #####################################################
-  ################## Linux Builds ###################
-  #####################################################
-  - local: .ci/linux.gitlab-ci.yml
+# Default settings applied to all jobs unless overridden
+default:
+  tags:
+    - linux
+  interruptible: true
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
 
-  #####################################################
-  ################## Windows Builds ###################
-  #####################################################
-  - local: .ci/windows.gitlab-ci.yml
-
-  #####################################################
-  ################### macOS Builds ####################
-  #####################################################
-  - local: .ci/mac.gitlab-ci.yml
-
-  #####################################################
-  ################# Release Packages ##################
-  #####################################################
-  - local: .ci/release.gitlab-ci.yml
-
-  #####################################################
-  ########## Release Packages Internally ##############
-  #####################################################
-  - local: .ci/apt-internal.gitlab-ci.yml
-
-  #####################################################
-  ############## Manual Claude Review #################
-  #####################################################
-  - component: $CI_SERVER_FQDN/cloudflare/ci/ai/review@~latest
+# Cache Go modules and build artifacts across pipeline runs
+.go-cache:
+  cache:
+    key:
+      files:
+        - go.sum
+    paths:
+      - .go/pkg/mod
+      - .cache/go-build
+    policy: pull-push
