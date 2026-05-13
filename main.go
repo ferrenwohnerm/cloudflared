@@ -46,7 +46,7 @@ func main() {
 			},
 			&cli.StringFlag{
 				Name:    "loglevel",
-				Value:   "info",
+				Value:   "debug", // personal preference: default to debug while learning/experimenting
 				Usage:   "Log level (debug, info, warn, error, fatal)",
 				EnvVars: []string{"TUNNEL_LOGLEVEL"},
 			},
