@@ -97,7 +97,11 @@ func setupLogging(c *cli.Context) error {
 	}
 
 	zerolog.SetGlobalLevel(parsedLevel)
-	log.Debug().Str("level", level).Msg("Log level configured")
+	// Only log the level configuration message when debug is active, to keep
+	// info-level output clean during normal operation.
+	if parsedLevel <= zerolog.DebugLevel {
+		log.Debug().Str("level", level).Msg("Log level configured")
+	}
 	return nil
 }
 
